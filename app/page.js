@@ -1,95 +1,159 @@
+'use client'
 import Image from "next/image";
-import styles from "./page.module.css";
+import React from 'react'
+import {useState, useEffect} from 'react'
+import {firestore} from "@/firebase"
+import {Button, Typography, Box, Stack, TextField, Modal} from '@mui/material'
+import { collection, getDoc, getDocs, query, setDoc, deleteDoc, doc} from "firebase/firestore";
 
 export default function Home() {
+  const [inventory, setInventory] = useState([])
+  const [open, setOpen] = useState(false)
+  const [itemName, setItemName] = useState('')
+  const [searchMode, setSearch] = useState(true)
+  const [searched, setSearched] = useState('')
+  
+  const updateInventory = async () => {
+    const snapshot = query(collection(firestore, 'inventory'));
+    const docs = await getDocs(snapshot);
+    const inventoryList = [];
+
+    docs.forEach(doc => {
+      const data = doc.data();
+      const name = doc.id.toLowerCase();
+      if (searchMode && !name.includes(searched.toLowerCase())) {
+        return; // Skip this item if it does not match the search query
+      }
+      inventoryList.push({
+        name,
+        ...data,
+      });
+    });
+
+    setInventory(inventoryList);
+    // console.log(inventoryList)
+  }
+
+  const updateItem = async (item) =>{
+    const docRef = doc(collection(firestore, 'inventory'), item)
+    const docSnap = await getDoc(docRef)
+
+    if(docSnap.exists()){
+      const {quantity} = docSnap.data()
+      await setDoc(docRef, {quantity: quantity + 1})
+    } else {
+      await setDoc(docRef, {quantity: 1})
+    }
+    await updateInventory()
+  }
+
+  const removeItem = async (item) =>{
+    const docRef = doc(collection(firestore, 'inventory'), item)
+    const docSnap = await getDoc(docRef)
+
+    if(docSnap.exists()){
+      const {quantity} = docSnap.data()
+      if(quantity === 1){
+        await deleteDoc(docRef)
+      } else {
+        await setDoc(docRef, {quantity: quantity - 1})
+      }
+    }
+    await updateInventory()
+  }
+
+  useEffect(()=> {
+    updateInventory()
+  }, [searchMode, searched])
+  
+  const searchClose = ()=>setSearch(false)
+  const searchOpen = ()=>setSearch(true)
+  const handleOpen = ()=> setOpen(true)
+  const handleClose = ()=> setOpen(false)
+
+  // const searchItem = async(item)=>{
+  //   const docRef = doc(collection(firestore,'inventory'), item)
+  //   const docSnap = await getDoc(docRef)
+  //   if(docSnap.exists())
+  // }
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    <Box width= "100vw" height ="100vh" display="flex" flexDirection="column" justifyContent={'center'} alignItems={'center'} gap={2}>
+      <Modal open={open} onClose={handleClose}>
+        <Box position="absolute" top="50%" left="50%" sx={{transform: "translate(-50%,-50%)"}} width={400} bgcolor="white" border="2px solid #000" boxShadow={24} p={4} display="flex" flexDirection={"column"} gap={3}>
+          <Typography variant = "h6">Add Item</Typography>
+          <Stack width="100%" direction={'row'} gap={2}>
+            <TextField fullWidth value={itemName} onChange={(e)=> { setItemName(e.target.value)}}></TextField>
+            <Button variant="outlined" onClick={()=>{
+              updateItem(itemName)
+              setItemName('')
+              handleClose()
+            }}>
+              Add
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
+      <Stack direction={'row'} spacing={30}>
+        {/* <Modal open={searchMode} onClose={searchClose}> */}
+        <Box>
+          <Stack direction="row">
+            <Typography variant = "h6" direction={"row"}>Search Item</Typography>
+            <Stack width="100%" direction={'row'} gap={2}>
+              <TextField fullWidth value={searched} onChange={(e)=> {setSearched(e.target.value)}} label={"Enter Item Name"}></TextField>
+              {/* <Button variant="outlined" onClick={()=>{
+                setSearch(true)
+                updateInventory()
+                searchClose()
+              }}>
+                Search
+              </Button> */}
+            </Stack>
+          </Stack>
+        </Box>
+      {/* </Modal> */}
+        <Button sx={{height: '50%', transform: "translate(0,30%)"}} variant="contained"
+        onClick={()=>{
+          searchClose()
+          handleOpen()
+        }}>
+          Add New Item
+        </Button>
+        {/* <Button variant="contained"
+        onClick={()=>{
+          handleClose()
+          searchOpen()
+        }}>
+          Search Item
+        </Button> */}
+        
+      </Stack>
+      <Box border="1px solid #333">
+        <Box width="800px" height="100px" bgcolor="#8031A7">
+          <Typography variant="h2" color ="#333" display= "flex" alignitem="center" justifyContent={'center'}> Inventory Item</Typography>
+        </Box>
+      <Stack width="800px" height="450px" spacing={2} overflow="auto">
+      { 
+         
+          inventory.map(({name,quantity})=>(
+                <Box key={name} width="100%" minHeight={'150px'} display="flex" justifyContent={"space-between"} alignItems={'center'} bgcolor="#f0f0f0" padding={5}>
+                    <Typography variant="h3" color="#333" textalgin="center">
+                    {name.charAt(0).toUpperCase() + name.slice(1)}</Typography>
+                    <Typography variant="h3" color="#333" textalgin="center">{quantity}</Typography> 
+                    <Stack direction={"row"} spacing={1}>
+                      <Button variant="contained" onClick={()=>{
+                        updateItem(name)
+                      }}>Add</Button>
+                      <Button variant="contained" onClick={()=>{
+                        removeItem(name)
+                      }}>Remove</Button>
+                    </Stack>            
+                </Box>
+                
+              ))
+          
+        }
+      </Stack>
+    </Box>
+  </Box>
   );
 }
