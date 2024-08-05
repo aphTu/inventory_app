@@ -35,7 +35,7 @@ export default function Home() {
   }
 
   const updateItem = async (item) =>{
-    const docRef = doc(collection(firestore, 'inventory'), item)
+    const docRef = doc(collection(firestore, 'inventory'), item.toLowerCase())
     const docSnap = await getDoc(docRef)
 
     if(docSnap.exists()){
@@ -48,7 +48,7 @@ export default function Home() {
   }
 
   const removeItem = async (item) =>{
-    const docRef = doc(collection(firestore, 'inventory'), item)
+    const docRef = doc(collection(firestore, 'inventory'), item.toLowerCase())
     const docSnap = await getDoc(docRef)
 
     if(docSnap.exists()){
@@ -113,7 +113,6 @@ export default function Home() {
       {/* </Modal> */}
         <Button sx={{height: '50%', transform: "translate(0,30%)"}} variant="contained"
         onClick={()=>{
-          searchClose()
           handleOpen()
         }}>
           Add New Item
